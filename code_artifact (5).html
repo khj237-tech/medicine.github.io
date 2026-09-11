@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>약먹을시간 - 스마트 복약 관리 및 케어 서비스</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(20, 184, 166, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+        }
+        .modal-animate {
+            animation: slideUp 0.25s ease-out forwards;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex justify-center items-start sm:py-6">
+
+    <div class="w-full max-w-md bg-white min-h-screen sm:min-h-[844px] sm:rounded-3xl shadow-2xl flex flex-col justify-between overflow-hidden relative">
+
+        <!-- Top Header Area -->
+        <header class="bg-gradient-to-r from-teal-600 to-emerald-600 text-white p-5 pt-7 rounded-b-3xl shadow-md relative">
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <span class="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-medium tracking-wide inline-flex items-center">
+                        <i class="fa-solid fa-heart-pulse mr-1 text-teal-200"></i>스마트 안심 복약 파트너
+                    </span>
+                    <h1 class="text-2xl font-bold mt-1 tracking-tight">약먹을시간 <span class="text-xs font-normal opacity-80">Pill Time</span></h1>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <!-- Sound Settings Modal Trigger -->
+                    <button onclick="openSoundSettingsModal()" class="bg-white/15 hover:bg-white/25 p-2.5 rounded-full text-white transition text-sm relative" title="알람 소리 설정">
+                        <i class="fa-solid fa-volume-high"></i>
+                        <span id="soundActiveBadge" class="absolute top-1 right-1 w-2 h-2 bg-teal-300 rounded-full"></span>
+                    </button>
+                    <!-- Caregiver Link Modal Trigger -->
+                    <button onclick="openCaregiverModal()" class="bg-white/15 hover:bg-white/25 p-2.5 rounded-full text-white transition text-sm relative" title="보호자 연동">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span id="caregiverBadge" class="hidden absolute top-0 right-0 w-3 h-3 bg-amber-400 rounded-full border-2 border-teal-600"></span>
+                    </button>
+                    <!-- Notification Simulator Trigger -->
+                    <button onclick="openNotificationSimulator()" class="bg-white/15 hover:bg-white/25 p-2.5 rounded-full text-white transition text-sm relative" title="알림 테스트">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-rose-400 rounded-full"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Date Selector Row -->
+            <div class="flex justify-between items-center pt-2 text-sm text-teal-50 border-t border-white/10">
+                <button onclick="changeDate(-1)" class="p-1 hover:text-white transition"><i class="fa-solid fa-chevron-left"></i> 이전날</button>
+                <span id="currentDateDisplay" class="font-bold text-base tracking-wide">2026년 8월 28일 (금)</span>
+                <button onclick="changeDate(1)" class="p-1 hover:text-white transition">다음날 <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </header>
+
+        <!-- Toast Notification Alert Box -->
+        <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 text-xs sm:text-sm transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-4 max-w-[90%] border border-slate-700">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+            <span id="toastMsg" class="font-medium">복용이 완료 처리되었습니다.</span>
+        </div>
+
+        <!-- Main Content Scroll Area -->
+        <main id="appContent" class="flex-1 overflow-y-auto p-4 pb-24 hide-scrollbar">
+
+            <!-- TAB 1: HOME (Dashboard & Timeline) -->
+            <section id="tabHome" class="space-y-4">
+                
+                <!-- Daily Progress Card -->
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Today's Goal</p>
+                        <h2 class="text-lg font-bold text-slate-800 mt-0.5">오늘의 복약 달성률</h2>
+                        <p id="progressSubtext" class="text-xs text-teal-600 font-semibold mt-1">총 3개 중 2개 복용 완료!</p>
+                    </div>
+                    <div class="relative flex items-center justify-center w-16 h-16">
+                        <svg class="w-16 h-16 transform -rotate-90">
+                            <circle cx="32" cy="32" r="26" stroke="#f1f5f9" stroke-width="6" fill="transparent"/>
+                            <circle id="progressCircle" cx="32" cy="32" r="26" stroke="#14b8a6" stroke-width="6" 
+                                stroke-linecap="round" fill="transparent" stroke-dasharray="163" stroke-dashoffset="54" class="transition-all duration-500"/>
+                        </svg>
+                        <span id="progressPercent" class="absolute text-sm font-extrabold text-teal-600">66%</span>
+                    </div>
+                </div>
+
+                <!-- Next Scheduled Dose Banner -->
+                <div id="nextDoseBanner" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-lg flex-shrink-0">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-amber-100 font-semibold uppercase tracking-wider">다음 예정 복용</span>
+                            <h3 id="nextDoseName" class="font-bold text-sm leading-snug">점심 소화제 & 영양제</h3>
+                            <p id="nextDoseTime" class="text-xs text-amber-100">오후 1:30 (약 30분 남음)</p>
+                        </div>
+                    </div>
+                    <button onclick="quickCompleteNextDose()" class="bg-white text-amber-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-amber-50 active:scale-95 transition shadow flex-shrink-0">
+                        <i class="fa-solid fa-check mr-1"></i>바로 체크
+                    </button>
+                </div>
+
+                <!-- Timeline Filters -->
+                <div class="flex items-center justify-between pt-1">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                        <i class="fa-solid fa-list-check text-teal-600 mr-2"></i>오늘의 복용 일정
+                    </h3>
+                    <div class="flex space-x-1 bg-slate-100 p-1 rounded-xl text-[11px] font-medium text-slate-600">
+                        <button onclick="filterTimeline('all')" id="filterAll" class="px-2.5 py-1 rounded-lg bg-white shadow-sm text-teal-700 font-bold transition">전체</button>
+                        <button onclick="filterTimeline('morning')" id="filterMorning" class="px-2.5 py-1 rounded-lg hover:text-slate-900 transition">아침</button>
+                        <button onclick="filterTimeline('lunch')" id="filterLunch" class="px-2.5 py-1 rounded-lg hover:text-slate-900 transition">점심</button>
+                        <button onclick="filterTimeline('evening')" id="filterEvening" class="px-2.5 py-1 rounded-lg hover:text-slate-900 transition">저녁</button>
+                    </div>
+                </div>
+
+                <!-- Medication Schedule List -->
+                <div id="medicationTimeline" class="space-y-3">
+                    <!-- Dynamic rendering via JavaScript -->
+                </div>
+
+            </section>
+
+            <!-- TAB 2: CABINET (My Meds & Refill Alert & Interaction Check) -->
+            <section id="tabCabinet" class="space-y-4 hidden">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">보관 중인 약상자</h2>
+                        <p class="text-xs text-slate-500">등록된 약 목록과 잔여 알약 재고를 관리합니다.</p>
+                    </div>
+                    <button onclick="openAddModal()" class="bg-teal-600 text-white px-3 py-2 rounded-xl text-xs font-semibold hover:bg-teal-700 transition flex items-center shadow-sm">
+                        <i class="fa-solid fa-plus mr-1"></i>약 등록
+                    </button>
+                </div>
+
+                <!-- Stock Low Warning Card -->
+                <div id="refillAlertBox" class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 flex items-start space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500 text-lg mt-0.5"></i>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-rose-800 text-xs">약 재처방 및 구매가 필요해요!</h4>
+                        <p id="refillAlertText" class="text-xs text-rose-600 mt-0.5">혈압약의 남은 수량이 3알 이하입니다. 병원 방문 일정을 확인하세요.</p>
+                    </div>
+                </div>
+
+                <!-- Quick Interaction Check Button Banner -->
+                <div onclick="openInteractionModal()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-3.5 rounded-2xl shadow-sm flex justify-between items-center cursor-pointer hover:opacity-95 transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-capsules"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xs">약물 & 영양제 충돌/궁합 체크</h4>
+                            <p class="text-[10px] text-purple-100">함께 복용 시 위험한 약 조합을 미리 검사하세요.</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-purple-200"></i>
+                </div>
+
+                <!-- Cabinet Meds Cards Container -->
+                <div id="cabinetList" class="grid grid-cols-1 gap-3">
+                    <!-- Dynamic JS rendering -->
+                </div>
+            </section>
+
+            <!-- TAB 3: CALENDAR (Monthly Check & Stats) -->
+            <section id="tabCalendar" class="space-y-4 hidden">
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 id="calendarMonthTitle" class="font-bold text-slate-800 text-sm">2026년 8월 복약 기록</h2>
+                        <div class="flex space-x-2 text-[10px]">
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>100%</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-amber-400 mr-1"></span>부분</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-rose-400 mr-1"></span>미복용</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Calendar Grid Header -->
+                    <div class="grid grid-cols-7 text-center text-[11px] font-bold text-slate-400 mb-2">
+                        <span class="text-rose-500">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-500">토</span>
+                    </div>
+
+                    <!-- Mini Calendar Days -->
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-xs">
+                        <!-- Dynamic Calendar generation -->
+                    </div>
+                </div>
+
+                <!-- Weekly Adherence Chart -->
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-xs mb-3 flex items-center justify-between">
+                        <span><i class="fa-solid fa-chart-line text-teal-600 mr-1.5"></i>주간 복약 준수율</span>
+                        <span class="text-teal-600 font-extrabold text-sm">평균 88%</span>
+                    </h3>
+                    <div class="h-40 w-full">
+                        <canvas id="adherenceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Streak Banner -->
+                <div class="bg-gradient-to-r from-teal-500 to-emerald-500 text-white p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <div class="text-2xl"><i class="fa-solid fa-fire text-amber-300"></i></div>
+                        <div>
+                            <h4 class="font-bold text-xs">연속 7일 복용 달성 중!</h4>
+                            <p class="text-[10px] text-teal-100">규칙적인 약 복용이 내 몸을 지키는 가장 쉬운 습관입니다.</p>
+                        </div>
+                    </div>
+                    <span class="bg-white/20 px-2.5 py-1 rounded-full text-xs font-extrabold">🏆 Lv.3</span>
+                </div>
+            </section>
+
+            <!-- TAB 4: AI DOCTOR (Gemini Drug Info & Prescription Scan) -->
+            <section id="tabAi" class="space-y-4 hidden">
+                <div class="bg-gradient-to-br from-teal-700 to-slate-800 text-white p-4.5 rounded-2xl shadow-md">
+                    <div class="flex items-center space-x-1.5 text-[11px] bg-teal-500/30 text-teal-200 px-2.5 py-0.5 rounded-full w-fit font-medium">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> AI 약사 챗봇 & OCR 스캐너
+                    </div>
+                    <h2 class="text-base font-bold mt-2">약물 질문 및 궁합 상담</h2>
+                    <p class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                        복용 중인 약, 영양제 조합, 음식 궁합, 부작용이 궁금하면 언제든 물어보세요.
+                    </p>
+                </div>
+
+                <!-- OCR Prescription Scanner Simulation -->
+                <div class="bg-white border border-teal-100 rounded-2xl p-4 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-xs mb-1.5 flex items-center">
+                        <i class="fa-solid fa-camera text-teal-600 mr-2 text-sm"></i>약 봉투/처방전 촬영 자동 등록 (OCR)
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mb-3">처방전이나 약 봉투를 찍으면 약 이름과 복용 시간이 자동으로 분석되어 등록됩니다.</p>
+                    
+                    <label class="border-2 border-dashed border-teal-200 hover:border-teal-400 bg-teal-50/50 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition text-center group">
+                        <div class="w-10 h-10 bg-teal-100 group-hover:bg-teal-200 text-teal-600 rounded-full flex items-center justify-center text-lg mb-1.5 transition">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <span class="text-xs font-bold text-teal-700">처방전 또는 약봉투 사진 올려보기</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5">인공지능이 텍스트를 읽어 약상자에 자동 추가해 드려요</span>
+                        <input type="file" accept="image/*" class="hidden" onchange="handlePrescriptionScan(event)">
+                    </label>
+
+                    <!-- OCR Progress / Result Display -->
+                    <div id="ocrStatus" class="hidden mt-3 p-3 bg-teal-50 rounded-xl text-xs text-teal-800 space-y-1">
+                        <div class="flex items-center space-x-2 font-bold">
+                            <i class="fa-solid fa-spinner animate-spin text-teal-600"></i>
+                            <span id="ocrStatusText">약 봉투 이미지 스캔 중...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Chat / Question Box -->
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                    <h3 class="font-bold text-slate-800 text-xs flex items-center">
+                        <i class="fa-solid fa-comments text-teal-600 mr-2 text-sm"></i>AI 스마트 상담
+                    </h3>
+                    
+                    <!-- Quick Question Buttons -->
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="askPreset('타이레놀이랑 영양제 같이 먹어도 돼?')" class="bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-[11px] px-2.5 py-1 rounded-lg transition">
+                            💊 타이레놀과 영양제 조합
+                        </button>
+                        <button onclick="askPreset('혈압약 먹을 때 주의해야 할 음식 알려줘')" class="bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-[11px] px-2.5 py-1 rounded-lg transition">
+                            🍊 혈압약과 주의 음식
+                        </button>
+                        <button onclick="askPreset('약 먹는 시간을 깜빡했을 때 어떻게 해야 해?')" class="bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-[11px] px-2.5 py-1 rounded-lg transition">
+                            ⏰ 약 시간을 놓쳤을 때
+                        </button>
+                    </div>
+
+                    <div class="flex space-x-2 pt-1">
+                        <input type="text" id="aiQueryInput" placeholder="예: 소화제랑 커피 같이 마셔도 되나요?" 
+                            class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-500">
+                        <button onclick="askGeminiAIDoctor()" class="bg-teal-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 transition flex-shrink-0">
+                            질문하기
+                        </button>
+                    </div>
+
+                    <!-- AI Response Area -->
+                    <div id="aiResponseArea" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 space-y-2">
+                        <div class="flex items-center text-teal-700 font-bold">
+                            <i class="fa-solid fa-robot mr-1.5 text-sm"></i> AI 답변:
+                        </div>
+                        <p id="aiResponseText" class="leading-relaxed whitespace-pre-line text-slate-600"></p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Floating Add Button (Home & Cabinet tab) -->
+        <button id="floatingAddBtn" onclick="openAddModal()" 
+            class="fixed sm:absolute bottom-20 right-5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white w-13 h-13 rounded-full shadow-lg flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all z-30">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="bg-white border-t border-slate-200 flex justify-around items-center py-2 px-3 relative z-20">
+            <button onclick="switchTab('home')" id="navHome" class="flex flex-col items-center text-teal-600 font-bold">
+                <i class="fa-solid fa-house-chimney text-lg"></i>
+                <span class="text-[10px] mt-1">홈</span>
+            </button>
+            <button onclick="switchTab('cabinet')" id="navCabinet" class="flex flex-col items-center text-slate-400 hover:text-teal-600 font-medium">
+                <i class="fa-solid fa-pills text-lg"></i>
+                <span class="text-[10px] mt-1">내 약상자</span>
+            </button>
+            <button onclick="switchTab('calendar')" id="navCalendar" class="flex flex-col items-center text-slate-400 hover:text-teal-600 font-medium">
+                <i class="fa-solid fa-calendar-check text-lg"></i>
+                <span class="text-[10px] mt-1">캘린더</span>
+            </button>
+            <button onclick="switchTab('ai')" id="navAi" class="flex flex-col items-center text-slate-400 hover:text-teal-600 font-medium">
+                <i class="fa-solid fa-robot text-lg"></i>
+                <span class="text-[10px] mt-1">AI 약사</span>
+            </button>
+        </nav>
+
+        <!-- MODAL 1: ADD MEDICATION -->
+        <div id="addModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto modal-animate">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-capsules text-teal-600 mr-2"></i>새 약 등록하기</h3>
+                    <button onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <form id="addMedForm" onsubmit="saveMedication(event)" class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">약 이름 / 처방명 *</label>
+                        <input type="text" id="inputMedName" required placeholder="예: 혈압약, 타이레놀, 멀티비타민" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">약 종류</label>
+                            <select id="inputMedCategory" class="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500">
+                                <option value="알약">알약 💊</option>
+                                <option value="가루약">가루약 🧪</option>
+                                <option value="물약">물약 🧴</option>
+                                <option value="영양제">영양제 🌿</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">보유 개수 (알)</label>
+                            <input type="number" id="inputMedStock" value="30" min="1" required 
+                                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">복용 시간대 지정 *</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <label class="border border-slate-200 p-2 rounded-xl text-center cursor-pointer hover:bg-teal-50 has-[:checked]:bg-teal-600 has-[:checked]:text-white has-[:checked]:font-bold">
+                                <input type="checkbox" name="inputTimes" value="morning" class="hidden" checked> 아침
+                            </label>
+                            <label class="border border-slate-200 p-2 rounded-xl text-center cursor-pointer hover:bg-teal-50 has-[:checked]:bg-teal-600 has-[:checked]:text-white has-[:checked]:font-bold">
+                                <input type="checkbox" name="inputTimes" value="lunch" class="hidden"> 점심
+                            </label>
+                            <label class="border border-slate-200 p-2 rounded-xl text-center cursor-pointer hover:bg-teal-50 has-[:checked]:bg-teal-600 has-[:checked]:text-white has-[:checked]:font-bold">
+                                <input type="checkbox" name="inputTimes" value="evening" class="hidden" checked> 저녁
+                            </label>
+                            <label class="border border-slate-200 p-2 rounded-xl text-center cursor-pointer hover:bg-teal-50 has-[:checked]:bg-teal-600 has-[:checked]:text-white has-[:checked]:font-bold">
+                                <input type="checkbox" name="inputTimes" value="night" class="hidden"> 취침전
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">복용 타이밍</label>
+                        <select id="inputMedTiming" class="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500">
+                            <option value="식후 30분">식후 30분</option>
+                            <option value="식전 30분">식전 30분</option>
+                            <option value="식사 직후">식사 직후</option>
+                            <option value="취침 전">취침 전</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">주의사항 메모</label>
+                        <input type="text" id="inputMedNote" placeholder="예: 졸음 유발 가능성, 우유와 복용 금지" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500">
+                    </div>
+
+                    <div class="pt-2 flex space-x-2">
+                        <button type="button" onclick="closeAddModal()" class="w-1/3 bg-slate-100 text-slate-600 p-3 rounded-xl font-bold hover:bg-slate-200 transition">취소</button>
+                        <button type="submit" class="w-2/3 bg-teal-600 text-white p-3 rounded-xl font-bold hover:bg-teal-700 transition">등록완료</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL 2: CAREGIVER LINKING (보호자 연동) -->
+        <div id="caregiverModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 modal-animate">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center">
+                        <i class="fa-solid fa-user-shield text-teal-600 mr-2"></i>보호자 안심 연동 설정
+                    </h3>
+                    <button onclick="closeCaregiverModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    약을 1시간 이상 복용하지 않을 경우, 등록된 보호자에게 자동으로 안심 알림 문자를 발송합니다.
+                </p>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">보호자 이름</label>
+                        <input type="text" id="caregiverName" placeholder="예: 딸 (홍길순)" value="자녀 (김수현)" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">보호자 전화번호</label>
+                        <input type="tel" id="caregiverPhone" placeholder="010-1234-5678" value="010-9876-5432" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500">
+                    </div>
+                    
+                    <div class="flex items-center justify-between p-3 bg-teal-50 rounded-xl border border-teal-100">
+                        <div>
+                            <p class="font-bold text-teal-800">미복용 자동 알림 켜기</p>
+                            <p class="text-[10px] text-teal-600">지정 시간 +60분 경과 시 알림 전송</p>
+                        </div>
+                        <input type="checkbox" id="caregiverActive" checked class="w-5 h-5 accent-teal-600 rounded">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex space-x-2">
+                    <button onclick="closeCaregiverModal()" class="w-1/3 bg-slate-100 text-slate-600 p-3 rounded-xl font-bold hover:bg-slate-200 transition text-xs">닫기</button>
+                    <button onclick="saveCaregiverSettings()" class="w-2/3 bg-teal-600 text-white p-3 rounded-xl font-bold hover:bg-teal-700 transition text-xs">설정 저장</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: NOTIFICATION SIMULATOR -->
+        <div id="notifSimulatorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl modal-animate text-center">
+                <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-2xl pulse-ring">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full font-bold">푸시 알림 시뮬레이터</span>
+                    <h3 id="notifTitle" class="font-bold text-slate-800 text-base mt-1">💊 [점심 약] 복용할 시간입니다!</h3>
+                    <p id="notifSub" class="text-xs text-slate-500 mt-1">점심 소화제 & 비타민C (식후 30분)</p>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                    <button onclick="notifAction('complete')" class="w-full bg-teal-600 text-white p-3 rounded-xl font-bold hover:bg-teal-700 transition text-xs shadow-md">
+                        <i class="fa-solid fa-check-circle mr-1"></i>지금 복용하기
+                    </button>
+                    <button onclick="notifAction('snooze')" class="w-full bg-slate-100 text-slate-700 p-2.5 rounded-xl font-semibold hover:bg-slate-200 transition text-xs">
+                        10분 뒤 다시 알림
+                    </button>
+                    <button onclick="closeNotifSimulator()" class="w-full text-slate-400 p-1.5 text-xs hover:text-slate-600">
+                        닫기
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: DRUG INTERACTION CHECK -->
+        <div id="interactionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 modal-animate">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center">
+                        <i class="fa-solid fa-capsules text-purple-600 mr-2"></i>약물 & 영양제 궁합 검사
+                    </h3>
+                    <button onclick="closeInteractionModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <p class="text-xs text-slate-500">
+                    함께 드실 약이나 영양제 두 가지를 선택하여 위험 조합 여부를 확인하세요.
+                </p>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">첫 번째 약 / 영양제</label>
+                        <input type="text" id="drugA" placeholder="예: 타이레놀, 아스피린, 칼슘제" value="혈압약" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">두 번째 약 / 영양제</label>
+                        <input type="text" id="drugB" placeholder="예: 자몽즙, 자몽주스, 홍삼, 칼슘" value="자몽주스" 
+                            class="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500">
+                    </div>
+                </div>
+
+                <div id="interactionResult" class="hidden p-3.5 rounded-xl text-xs space-y-1">
+                    <!-- Dynamic Result -->
+                </div>
+
+                <button onclick="checkDrugInteraction()" class="w-full bg-purple-600 text-white p-3 rounded-xl font-bold hover:bg-purple-700 transition text-xs shadow-md">
+                    궁합 / 충돌 검사하기
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL 5: ALARM SOUND & TTS SETTINGS -->
+        <div id="soundSettingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto modal-animate">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center">
+                        <i class="fa-solid fa-music text-teal-600 mr-2"></i>복약 알람 소리 & 음성 설정
+                    </h3>
+                    <button onclick="closeSoundSettingsModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <!-- Sound Preset List -->
+                <div class="space-y-2 text-xs">
+                    <label class="block font-bold text-slate-700">알람 벨소리 종류 선택</label>
+                    <div id="soundPresetsList" class="space-y-2">
+                        <!-- Rendered by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Volume Slider & Options -->
+                <div class="space-y-3 pt-3 border-t text-xs">
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="font-bold text-slate-700">알람 음량 (볼륨)</label>
+                            <span id="volumeValueText" class="text-teal-600 font-extrabold">80%</span>
+                        </div>
+                        <input type="range" id="volumeSlider" min="10" max="100" value="80" oninput="updateVolume(this.value)" class="w-full accent-teal-600 cursor-pointer">
+                    </div>
+
+                    <!-- Voice TTS Toggle -->
+                    <div class="flex items-center justify-between p-3 bg-teal-50/80 rounded-xl border border-teal-100">
+                        <div>
+                            <p class="font-bold text-teal-900">🗣️ 음성 안내 함께 듣기 (TTS)</p>
+                            <p class="text-[10px] text-teal-600 mt-0.5">"점심 약 드실 시간입니다" 음성을 함께 말해줍니다.</p>
+                        </div>
+                        <input type="checkbox" id="ttsActiveToggle" checked class="w-5 h-5 accent-teal-600 rounded cursor-pointer">
+                    </div>
+
+                    <!-- Vibration Toggle -->
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div>
+                            <p class="font-bold text-slate-800">📳 모바일 진동 함께 사용</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">알람 울림 시 기기 진동 패턴을 함께 동작합니다.</p>
+                        </div>
+                        <input type="checkbox" id="vibrateActiveToggle" checked class="w-5 h-5 accent-teal-600 rounded cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex space-x-2">
+                    <button onclick="previewCurrentSound()" class="w-1/2 bg-slate-100 text-slate-700 p-3 rounded-xl font-bold hover:bg-slate-200 transition text-xs flex items-center justify-center">
+                        <i class="fa-solid fa-play text-teal-600 mr-1.5"></i>알람 들어보기
+                    </button>
+                    <button onclick="saveSoundSettings()" class="w-1/2 bg-teal-600 text-white p-3 rounded-xl font-bold hover:bg-teal-700 transition text-xs">
+                        설정 저장
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global Application State
+        let currentDate = new Date(2026, 7, 28); // 2026년 8월 28일
+        let activeTab = 'home';
+        let currentFilter = 'all';
+
+        // Sound Settings State
+        let soundConfig = {
+            selectedPreset: 'gentle', // 'gentle', 'upbeat', 'digital', 'marimba', 'urgent'
+            volume: 0.8,
+            useTTS: true,
+            useVibration: true
+        };
+
+        const soundPresets = [
+            { id: 'gentle', name: '🔔 은은한 찰랑종', desc: '맑고 편안한 차임종 소리' },
+            { id: 'upbeat', name: '🎵 경쾌한 멜로디', desc: '밝고 기분 좋은 아르페지오 음률' },
+            { id: 'digital', name: '⏰ 클래식 디지탈 삐삐', desc: '선명하게 깨워주는 디지털 알람' },
+            { id: 'marimba', name: '🪵 따뜻한 마림바', desc: '부드러운 목재 타악기 느낌' },
+            { id: 'urgent', name: '🚨 강한 선명 알림', desc: '잊지 않고 꼭 챙기는 강력 알람' }
+        ];
+
+        // Web Audio Synthesizer Engine for Custom Clean Sound Effects
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playAlarmSynthesizer(presetId = soundConfig.selectedPreset, customVolume = soundConfig.volume) {
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+                const masterGain = ctx.createGain();
+                masterGain.gain.setValueAtTime(customVolume, now);
+                masterGain.connect(ctx.destination);
+
+                if (presetId === 'gentle') {
+                    // Soft Bell Chime: C5 (523Hz), E5 (659Hz), G5 (783Hz), C6 (1046Hz)
+                    const freqs = [523.25, 659.25, 783.99, 1046.50];
+                    freqs.forEach((f, idx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.18);
+                        
+                        g.gain.setValueAtTime(0, now + idx * 0.18);
+                        g.gain.linearRampToValueAtTime(0.4, now + idx * 0.18 + 0.03);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.9);
+
+                        osc.connect(g);
+                        g.connect(masterGain);
+
+                        osc.start(now + idx * 0.18);
+                        osc.stop(now + idx * 0.18 + 1.0);
+                    });
+                } else if (presetId === 'upbeat') {
+                    // Upbeat Melody: E5, G5, A5, B5, C6, E6
+                    const notes = [659.25, 783.99, 880.00, 987.77, 1046.50, 1318.51];
+                    notes.forEach((f, idx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.12);
+
+                        g.gain.setValueAtTime(0.3, now + idx * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.35);
+
+                        osc.connect(g);
+                        g.connect(masterGain);
+
+                        osc.start(now + idx * 0.12);
+                        osc.stop(now + idx * 0.12 + 0.4);
+                    });
+                } else if (presetId === 'digital') {
+                    // Digital Beep Beep
+                    [0, 0.15, 0.4, 0.55].forEach((t) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(1046.50, now + t);
+
+                        g.gain.setValueAtTime(0.15, now + t);
+                        g.gain.setValueAtTime(0.001, now + t + 0.08);
+
+                        osc.connect(g);
+                        g.connect(masterGain);
+
+                        osc.start(now + t);
+                        osc.stop(now + t + 0.1);
+                    });
+                } else if (presetId === 'marimba') {
+                    // Warm Marimba Tones
+                    const freqs = [440, 554.37, 659.25, 880];
+                    freqs.forEach((f, idx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.15);
+
+                        g.gain.setValueAtTime(0.5, now + idx * 0.15);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.3);
+
+                        osc.connect(g);
+                        g.connect(masterGain);
+
+                        osc.start(now + idx * 0.15);
+                        osc.stop(now + idx * 0.15 + 0.35);
+                    });
+                } else if (presetId === 'urgent') {
+                    // Siren Dual Pulse
+                    [0, 0.2, 0.4, 0.6].forEach((t, i) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(i % 2 === 0 ? 880 : 1200, now + t);
+
+                        g.gain.setValueAtTime(0.2, now + t);
+                        g.gain.linearRampToValueAtTime(0.001, now + t + 0.15);
+
+                        osc.connect(g);
+                        g.connect(masterGain);
+
+                        osc.start(now + t);
+                        osc.stop(now + t + 0.16);
+                    });
+                }
+
+                // Trigger vibration if supported and enabled
+                if (soundConfig.useVibration && navigator.vibrate) {
+                    navigator.vibrate([200, 100, 200, 100, 300]);
+                }
+            } catch (err) {
+                console.log('Audio playback error:', err);
+            }
+        }
+
+        function speakNotificationText(text) {
+            if (!soundConfig.useTTS || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel(); // Stop any pending speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.95;
+                utterance.volume = soundConfig.volume;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.log('TTS Error:', e);
+            }
+        }
+
+        function renderSoundOptions() {
+            const container = document.getElementById('soundPresetsList');
+            if (!container) return;
+            container.innerHTML = '';
+
+            soundPresets.forEach(preset => {
+                const isSelected = preset.id === soundConfig.selectedPreset;
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                    isSelected ? 'bg-teal-50 border-teal-500 text-teal-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`;
+                item.onclick = () => selectSoundPreset(preset.id);
+
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2.5">
+                        <input type="radio" name="soundPreset" value="${preset.id}" ${isSelected ? 'checked' : ''} class="accent-teal-600 w-4 h-4">
+                        <div>
+                            <p class="text-xs ${isSelected ? 'font-bold text-teal-900' : 'font-semibold text-slate-800'}">${preset.name}</p>
+                            <p class="text-[10px] ${isSelected ? 'text-teal-700' : 'text-slate-400'} mt-0.5">${preset.desc}</p>
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); previewSpecificSound('${preset.id}')" class="px-2.5 py-1 bg-white hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg text-[10px] font-bold transition flex items-center">
+                        <i class="fa-solid fa-volume-high mr-1"></i>듣기
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function selectSoundPreset(presetId) {
+            soundConfig.selectedPreset = presetId;
+            renderSoundOptions();
+            previewSpecificSound(presetId);
+        }
+
+        function previewSpecificSound(presetId) {
+            playAlarmSynthesizer(presetId);
+            if (soundConfig.useTTS) {
+                setTimeout(() => {
+                    speakNotificationText("약 먹을 시간입니다!");
+                }, 700);
+            }
+        }
+
+        function previewCurrentSound() {
+            previewSpecificSound(soundConfig.selectedPreset);
+        }
+
+        function updateVolume(val) {
+            soundConfig.volume = parseFloat(val) / 100;
+            document.getElementById('volumeValueText').innerText = `${val}%`;
+        }
+
+        function openSoundSettingsModal() {
+            renderSoundOptions();
+            document.getElementById('volumeSlider').value = Math.round(soundConfig.volume * 100);
+            document.getElementById('volumeValueText').innerText = `${Math.round(soundConfig.volume * 100)}%`;
+            document.getElementById('ttsActiveToggle').checked = soundConfig.useTTS;
+            document.getElementById('vibrateActiveToggle').checked = soundConfig.useVibration;
+
+            document.getElementById('soundSettingsModal').classList.remove('hidden');
+        }
+
+        function closeSoundSettingsModal() {
+            document.getElementById('soundSettingsModal').classList.add('hidden');
+        }
+
+        function saveSoundSettings() {
+            soundConfig.useTTS = document.getElementById('ttsActiveToggle').checked;
+            soundConfig.useVibration = document.getElementById('vibrateActiveToggle').checked;
+
+            closeSoundSettingsModal();
+            showToast('알람 소리 및 음성 설정이 변경되었습니다!', 'fa-volume-high text-teal-400');
+        }
+
+        // Sample Medication Initial Data
+        let medications = [
+            {
+                id: 1,
+                name: '혈압약 (고혈압 관리)',
+                category: '알약',
+                stock: 4, // Trigger refill alert (<5)
+                timing: '식전 30분',
+                times: ['morning'],
+                note: '우유 또는 자몽주스와 복용 금지',
+                history: { '2026-08-28': { morning: true } }
+            },
+            {
+                id: 2,
+                name: '점심 소화제 & 비타민C',
+                category: '알약',
+                stock: 18,
+                timing: '식후 30분',
+                times: ['lunch'],
+                note: '충분한 물과 함께 복용',
+                history: { '2026-08-28': { lunch: false } }
+            },
+            {
+                id: 3,
+                name: '눈 건강 루테인 & 오메가3',
+                category: '영양제',
+                stock: 25,
+                timing: '식사 직후',
+                times: ['evening'],
+                note: '저녁 식사 직후 복용 권장',
+                history: { '2026-08-28': { evening: false } }
+            }
+        ];
+
+        let caregiverInfo = {
+            name: '자녀 (김수현)',
+            phone: '010-9876-5432',
+            active: true
+        };
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            const tabs = ['home', 'cabinet', 'calendar', 'ai'];
+            tabs.forEach(t => {
+                const formattedName = t === 'ai' ? 'Ai' : t.charAt(0).toUpperCase() + t.slice(1);
+                const el = document.getElementById('tab' + formattedName) || document.getElementById('tab' + t.toUpperCase());
+                const nav = document.getElementById('nav' + formattedName);
+
+                if (el) {
+                    if (t === tabId) {
+                        el.classList.remove('hidden');
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                }
+
+                if (nav) {
+                    if (t === tabId) {
+                        nav.classList.add('text-teal-600', 'font-bold');
+                        nav.classList.remove('text-slate-400', 'font-medium');
+                    } else {
+                        nav.classList.remove('text-teal-600', 'font-bold');
+                        nav.classList.add('text-slate-400', 'font-medium');
+                    }
+                }
+            });
+
+            // Toggle floating add button visibility
+            const addBtn = document.getElementById('floatingAddBtn');
+            if (addBtn) {
+                if (tabId === 'home' || tabId === 'cabinet') {
+                    addBtn.classList.remove('hidden');
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
+
+            if (tabId === 'calendar') {
+                renderCalendar();
+                renderAdherenceChart();
+            }
+        }
+
+        function changeDate(days) {
+            currentDate.setDate(currentDate.getDate() + days);
+            updateDateDisplay();
+            renderTimeline();
+            updateDailyProgress();
+        }
+
+        function updateDateDisplay() {
+            const daysKor = ['일', '월', '화', '수', '목', '금', '토'];
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const date = currentDate.getDate();
+            const day = daysKor[currentDate.getDay()];
+            document.getElementById('currentDateDisplay').innerText = `${year}년 ${month}월 ${date}일 (${day})`;
+        }
+
+        function getDateKey() {
+            const y = currentDate.getFullYear();
+            const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const d = String(currentDate.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function filterTimeline(filter) {
+            currentFilter = filter;
+            ['all', 'morning', 'lunch', 'evening'].forEach(f => {
+                const btn = document.getElementById('filter' + f.charAt(0).toUpperCase() + f.slice(1));
+                if (f === filter) {
+                    btn.className = "px-2.5 py-1 rounded-lg bg-white shadow-sm text-teal-700 font-bold transition";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-lg hover:text-slate-900 transition";
+                }
+            });
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('medicationTimeline');
+            container.innerHTML = '';
+            const dateKey = getDateKey();
+
+            const slotNames = {
+                morning: { label: '아침 복용', time: '오전 08:30', icon: 'fa-sun text-amber-500' },
+                lunch: { label: '점심 복용', time: '오후 01:00', icon: 'fa-sun-plant-wilt text-orange-500' },
+                evening: { label: '저녁 복용', time: '오후 07:00', icon: 'fa-moon text-indigo-500' },
+                night: { label: '취침 전 복용', time: '오후 10:00', icon: 'fa-bed text-purple-500' }
+            };
+
+            let count = 0;
+
+            medications.forEach(med => {
+                med.times.forEach(slot => {
+                    if (currentFilter !== 'all' && currentFilter !== slot) return;
+
+                    count++;
+                    const isTaken = med.history[dateKey] && med.history[dateKey][slot];
+                    const slotInfo = slotNames[slot] || { label: '복용', time: '시간 미정', icon: 'fa-clock' };
+
+                    const card = document.createElement('div');
+                    card.className = `p-3.5 rounded-2xl border transition-all ${
+                        isTaken ? 'bg-teal-50/60 border-teal-200' : 'bg-white border-slate-100 shadow-sm'
+                    } flex items-center justify-between`;
+
+                    card.innerHTML = `
+                        <div class="flex items-start space-x-3">
+                            <div class="w-10 h-10 rounded-xl ${isTaken ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'} flex items-center justify-center text-base flex-shrink-0 mt-0.5">
+                                <i class="fa-solid ${isTaken ? 'fa-check' : (med.category === '영양제' ? 'fa-leaf' : 'fa-pills')}"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isTaken ? 'bg-teal-200 text-teal-800' : 'bg-slate-100 text-slate-600'}">
+                                        <i class="fa-solid ${slotInfo.icon} mr-1"></i>${slotInfo.label} (${slotInfo.time})
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium">${med.timing}</span>
+                                </div>
+                                <h4 class="font-bold text-sm text-slate-800 mt-1 ${isTaken ? 'line-through text-slate-400' : ''}">${med.name}</h4>
+                                ${med.note ? `<p class="text-[10px] text-amber-600 mt-0.5"><i class="fa-solid fa-circle-info mr-1"></i>${med.note}</p>` : ''}
+                            </div>
+                        </div>
+
+                        <button onclick="toggleDose(${med.id}, '${slot}')" 
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center ${
+                                isTaken 
+                                ? 'bg-teal-600 text-white shadow-sm' 
+                                : 'bg-slate-100 hover:bg-teal-600 hover:text-white text-slate-600'
+                            }">
+                            <i class="fa-solid ${isTaken ? 'fa-circle-check mr-1' : 'fa-plus mr-1'}"></i>
+                            ${isTaken ? '완료' : '체크'}
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+
+            if (count === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">
+                        <i class="fa-solid fa-calendar-xmark text-3xl text-slate-300 mb-2"></i>
+                        <p class="text-xs text-slate-400 font-medium">해당 조건에 등록된 약 복용 일정이 없습니다.</p>
+                    </div>
+                `;
+            }
+
+            updateDailyProgress();
+            renderCabinet();
+        }
+
+        function toggleDose(medId, slot) {
+            const dateKey = getDateKey();
+            const med = medications.find(m => m.id === medId);
+            if (!med) return;
+
+            if (!med.history[dateKey]) med.history[dateKey] = {};
+
+            const currentState = med.history[dateKey][slot];
+            med.history[dateKey][slot] = !currentState;
+
+            if (!currentState) { // Marking as complete
+                med.stock = Math.max(0, med.stock - 1);
+                showToast(`'${med.name}' 복약을 완료했습니다!`, 'fa-circle-check text-emerald-400');
+            } else { // Undoing
+                med.stock += 1;
+                showToast('복용 체크가 취소되었습니다.', 'fa-circle-exclamation text-amber-400');
+            }
+
+            renderTimeline();
+        }
+
+        function quickCompleteNextDose() {
+            // Find first uncompleted dose today
+            const dateKey = getDateKey();
+            for (let med of medications) {
+                for (let slot of med.times) {
+                    if (!med.history[dateKey] || !med.history[dateKey][slot]) {
+                        toggleDose(med.id, slot);
+                        return;
+                    }
+                }
+            }
+            showToast('오늘의 모든 약 복용을 이미 완료하셨습니다!', 'fa-trophy text-amber-400');
+        }
+
+        function updateDailyProgress() {
+            const dateKey = getDateKey();
+            let total = 0;
+            let completed = 0;
+
+            medications.forEach(med => {
+                med.times.forEach(slot => {
+                    total++;
+                    if (med.history[dateKey] && med.history[dateKey][slot]) {
+                        completed++;
+                    }
+                });
+            });
+
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('progressPercent').innerText = `${percent}%`;
+            document.getElementById('progressSubtext').innerText = `총 ${total}개 중 ${completed}개 복용 완료!`;
+
+            // Update SVG circle stroke dash
+            const circle = document.getElementById('progressCircle');
+            const circumference = 163;
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+
+            // Update Next Dose Banner
+            const nextBanner = document.getElementById('nextDoseBanner');
+            if (completed === total && total > 0) {
+                document.getElementById('nextDoseName').innerText = '오늘 복약 모두 완료 🎉';
+                document.getElementById('nextDoseTime').innerText = '수고하셨습니다! 건강한 하루 보내세요.';
+            }
+        }
+
+        function renderCabinet() {
+            const container = document.getElementById('cabinetList');
+            container.innerHTML = '';
+
+            let hasLowStock = false;
+            let lowStockName = '';
+
+            medications.forEach(med => {
+                if (med.stock <= 5) {
+                    hasLowStock = true;
+                    lowStockName = med.name;
+                }
+
+                const card = document.createElement('div');
+                card.className = "bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between";
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-lg flex-shrink-0">
+                            <i class="fa-solid ${med.category === '영양제' ? 'fa-leaf' : 'fa-pills'}"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800">${med.name}</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">복용: ${med.times.map(t => t === 'morning' ? '아침' : t === 'lunch' ? '점심' : t === 'evening' ? '저녁' : '취침전').join(', ')} (${med.timing})</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${med.stock <= 5 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}">
+                                    잔여알약: ${med.stock}알 남음
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="refillMed(${med.id})" class="bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center">
+                        <i class="fa-solid fa-rotate-right mr-1"></i>30알 보충
+                    </button>
+                `;
+
+                container.appendChild(card);
+            });
+
+            // Refill alert banner update
+            const refillAlertBox = document.getElementById('refillAlertBox');
+            if (hasLowStock) {
+                refillAlertBox.classList.remove('hidden');
+                document.getElementById('refillAlertText').innerText = `'${lowStockName}'의 잔여 수량이 5알 미만입니다. 병원 재처방 또는 구매를 권장합니다.`;
+            } else {
+                refillAlertBox.classList.add('hidden');
+            }
+        }
+
+        function refillMed(medId) {
+            const med = medications.find(m => m.id === medId);
+            if (med) {
+                med.stock += 30;
+                showToast(`'${med.name}'의 수량이 30알 추가되었습니다.`, 'fa-boxes-packing text-teal-400');
+                renderCabinet();
+            }
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            // Generate 31 days for August
+            for (let day = 1; day <= 31; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = "p-2 rounded-xl border border-slate-100 bg-white flex flex-col items-center justify-between min-h-[46px]";
+
+                // Mock status for demonstration
+                let dotColor = "bg-emerald-500";
+                if (day === 12 || day === 19) dotColor = "bg-amber-400";
+                if (day === 24) dotColor = "bg-rose-400";
+                if (day > 28) dotColor = "bg-slate-200";
+
+                dayEl.innerHTML = `
+                    <span class="font-bold text-[11px] ${day === 28 ? 'text-teal-600' : 'text-slate-700'}">${day}</span>
+                    <span class="w-2 h-2 rounded-full ${dotColor} mt-1"></span>
+                `;
+                grid.appendChild(dayEl);
+            }
+        }
+
+        let chartInstance = null;
+        function renderAdherenceChart() {
+            const ctx = document.getElementById('adherenceChart').getContext('2d');
+            
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['월', '화', '수', '목', '금', '토', '일'],
+                    datasets: [{
+                        label: '복약 이행률 (%)',
+                        data: [100, 100, 66, 100, 100, 80, 100],
+                        borderColor: '#14b8a6',
+                        backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#14b8a6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { min: 0, max: 100, ticks: { stepSize: 50, font: { size: 10 } } },
+                        x: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function handlePrescriptionScan(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusBox = document.getElementById('ocrStatus');
+            const statusText = document.getElementById('ocrStatusText');
+
+            statusBox.classList.remove('hidden');
+            statusText.innerText = "Gemini OCR로 처방전/약 봉투 텍스트 분석 중...";
+
+            setTimeout(() => {
+                statusText.innerText = "약품명 인식 완료: [위장약 & 멀티비타민]";
+                
+                setTimeout(() => {
+                    // Auto Add Scanned Med
+                    const newMed = {
+                        id: Date.now(),
+                        name: '처방 위장약 (OCR 자동등록)',
+                        category: '알약',
+                        stock: 21,
+                        timing: '식후 30분',
+                        times: ['morning', 'evening'],
+                        note: '스캔 등록된 처방약',
+                        history: {}
+                    };
+                    medications.push(newMed);
+                    renderTimeline();
+                    renderCabinet();
+
+                    statusBox.classList.add('hidden');
+                    showToast('처방전 스캔 성공! 약 상자에 자동 추가되었습니다.', 'fa-wand-magic-sparkles text-teal-400');
+                }, 1000);
+            }, 1200);
+        }
+
+        function askPreset(query) {
+            document.getElementById('aiQueryInput').value = query;
+            askGeminiAIDoctor();
+        }
+
+        function askGeminiAIDoctor() {
+            const input = document.getElementById('aiQueryInput');
+            const query = input.value.trim();
+            if (!query) return;
+
+            const resArea = document.getElementById('aiResponseArea');
+            const resText = document.getElementById('aiResponseText');
+
+            resArea.classList.remove('hidden');
+            resText.innerText = "Gemini AI가 전문 약학 정보를 분석 중입니다...";
+
+            setTimeout(() => {
+                let reply = "";
+                if (query.includes('타이레놀')) {
+                    reply = "💡 [타이레놀 & 영양제 복용 안내]\n• 아세트아미노펜 성분의 타이레놀은 대부분의 비타민/영양제와 함께 복용 가능합니다.\n• 단, 음주 후 복용 시 간 손상 위험이 있으니 절대 삼가셔야 하며, 하루 최대 4,000mg을 초과하지 마세요.";
+                } else if (query.includes('혈압약')) {
+                    reply = "💡 [혈압약 복용 시 주의 식품]\n• 자몽, 자몽주스: 혈압약의 대사를 방해해 약효를 지나치게 높여 위험할 수 있습니다.\n• 칼슘 보충제: 일부 혈압약의 흡수를 방해할 수 있으므로 2시간 이상 간격을 두고 복용하세요.";
+                } else {
+                    reply = `💡 '${query}'에 대한 AI 스마트 약사 답변:\n• 해당 약물/영양제는 정해진 용법과 시간을 준수하는 것이 가장 중요합니다.\n• 복용 중 어지럼증, 속쓰림 등 이상 증상이 지속되면 처방 의사 또는 담당 약사와 상담하세요.`;
+                }
+                resText.innerText = reply;
+            }, 1000);
+        }
+
+        function openInteractionModal() {
+            document.getElementById('interactionModal').classList.remove('hidden');
+        }
+
+        function closeInteractionModal() {
+            document.getElementById('interactionModal').classList.add('hidden');
+        }
+
+        function checkDrugInteraction() {
+            const a = document.getElementById('drugA').value.trim();
+            const b = document.getElementById('drugB').value.trim();
+            const resultBox = document.getElementById('interactionResult');
+
+            resultBox.classList.remove('hidden');
+
+            if ((a.includes('혈압') && b.includes('자몽')) || (b.includes('혈압') && a.includes('자몽'))) {
+                resultBox.className = "p-3.5 rounded-xl text-xs space-y-1 bg-rose-50 border border-rose-200 text-rose-800";
+                resultBox.innerHTML = `
+                    <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>⚠️ 위험 (충돌 주의!)</p>
+                    <p>혈압약과 자몽(주스)을 함께 섭취하면 약물 혈중 농도가 급격히 상승해 저혈압 부작용을 유발할 수 있습니다.</p>
+                `;
+            } else {
+                resultBox.className = "p-3.5 rounded-xl text-xs space-y-1 bg-teal-50 border border-teal-200 text-teal-800";
+                resultBox.innerHTML = `
+                    <p class="font-bold"><i class="fa-solid fa-circle-check mr-1"></i>✅ 안전 (복용 가능)</p>
+                    <p>'${a}'와 '${b}' 사이에 알려진 심각한 상호작용 위험은 없습니다. 권장 용량을 준수하세요.</p>
+                `;
+            }
+        }
+
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+
+        function saveMedication(e) {
+            e.preventDefault();
+            const name = document.getElementById('inputMedName').value;
+            const category = document.getElementById('inputMedCategory').value;
+            const stock = parseInt(document.getElementById('inputMedStock').value) || 30;
+            const timing = document.getElementById('inputMedTiming').value;
+            const note = document.getElementById('inputMedNote').value;
+
+            const timeInputs = document.querySelectorAll('input[name="inputTimes"]:checked');
+            const times = Array.from(timeInputs).map(i => i.value);
+
+            if (times.length === 0) {
+                showToast('최소 하나의 복용 시간대를 선택해주세요.', 'fa-circle-exclamation text-amber-400');
+                return;
+            }
+
+            const newMed = {
+                id: Date.now(),
+                name,
+                category,
+                stock,
+                timing,
+                times,
+                note,
+                history: {}
+            };
+
+            medications.push(newMed);
+            closeAddModal();
+            renderTimeline();
+            renderCabinet();
+            showToast(`'${name}'약이 새로 등록되었습니다.`, 'fa-capsules text-teal-400');
+            document.getElementById('addMedForm').reset();
+        }
+
+        function openCaregiverModal() { document.getElementById('caregiverModal').classList.remove('hidden'); }
+        function closeCaregiverModal() { document.getElementById('caregiverModal').classList.add('hidden'); }
+
+        function saveCaregiverSettings() {
+            caregiverInfo.name = document.getElementById('caregiverName').value;
+            caregiverInfo.phone = document.getElementById('caregiverPhone').value;
+            caregiverInfo.active = document.getElementById('caregiverActive').checked;
+
+            const badge = document.getElementById('caregiverBadge');
+            if (caregiverInfo.active) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+
+            closeCaregiverModal();
+            showToast('보호자 안심 알림 설정이 저장되었습니다.', 'fa-user-shield text-teal-400');
+        }
+
+        function openNotificationSimulator() { 
+            document.getElementById('notifSimulatorModal').classList.remove('hidden');
+            
+            // Play selected synthesized sound effect & TTS
+            playAlarmSynthesizer();
+            if (soundConfig.useTTS) {
+                setTimeout(() => {
+                    speakNotificationText("점심 약 드실 시간입니다!");
+                }, 600);
+            }
+        }
+        function closeNotifSimulator() { document.getElementById('notifSimulatorModal').classList.add('hidden'); }
+
+        function notifAction(action) {
+            closeNotifSimulator();
+            if (action === 'complete') {
+                quickCompleteNextDose();
+            } else if (action === 'snooze') {
+                showToast('10분 뒤 알림이 다시 울립니다.', 'fa-clock text-amber-400');
+            }
+        }
+
+        function showToast(msg, iconClass) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            toastIcon.className = `fa-solid ${iconClass} text-lg`;
+
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 2500);
+        }
+
+        window.onload = function() {
+            updateDateDisplay();
+            renderTimeline();
+            renderCabinet();
+        };
+    </script>
+</body>
+</html>
